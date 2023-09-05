@@ -8,7 +8,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
@@ -31,16 +30,41 @@ import java.util.Set;
  */
 public class NioSocketDemo {
 
+
+    public static void main(String[] args) throws InterruptedException {
+        String serverHost = "127.0.0.1";
+        int serverPort = 9999;
+        Server server = new Server(serverHost, serverPort);
+        Client client = new Client();
+        client.connect(serverHost, serverPort);
+
+        Thread serverThread = new Thread(server::startServer, "server");
+        Thread clientThread = new Thread(client::startClient, "client");
+        serverThread.start();
+        //confirm server startup
+        Thread.sleep(2000);
+        clientThread.start();
+    }
+
     static class Server {
 
+        private final String host;
+        private final int port;
 
-        public static void main(String[] args) {
+
+        public Server(String host, int port) {
+            this.host = host;
+            this.port = port;
+        }
+
+
+        public void startServer() {
             try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
                 //channel config
                 //non blocking
                 serverSocketChannel.configureBlocking(false);
                 //bind ip and port
-                serverSocketChannel.bind(new InetSocketAddress("127.0.0.1", 9999));
+                serverSocketChannel.bind(new InetSocketAddress(this.host, this.port));
                 //define socket buffer
                 int bufferSize = 20;
                 ByteBuffer byteBuffer = ByteBuffer.allocate(bufferSize);
@@ -84,15 +108,18 @@ public class NioSocketDemo {
                                     //将charBuffer切换至读模式 limit = position, position = 0
                                     charBuffer.flip();
                                     message.append(charBuffer);
-                                    System.out.println("middle msg: " +  charBuffer);
+                                    System.out.println("middle msg: " + charBuffer);
                                     //保存剩余的byte，并将数据放置头部 position = remaining  limit = capacity
                                     byteBuffer.compact();
                                     //清空charBuffer position = 0 limit = capacity
                                     charBuffer.clear();
                                 }
-                                System.out.println("client send message : " + message);
                                 //close to see result 移除注释就可以看到结果，不然一直轮询打印看不到结果
-                                selector.close();
+                                if (message.isEmpty()) {
+                                    selector.close();
+                                } else {
+                                    System.out.println("client send message : " + message);
+                                }
                             }
                             // 指针之前的移除
                             iterator.remove();
@@ -110,22 +137,38 @@ public class NioSocketDemo {
     }
 
     static class Client {
-        public static void main(String[] args) {
+
+
+        private String remoteHost;
+        private int remotePort;
+
+        public void connect(String remoteHost, int remotePort) {
+            this.remoteHost = remoteHost;
+            this.remotePort = remotePort;
+        }
+
+
+        public void startClient() {
+            if (this.remoteHost == null) {
+                throw new IllegalArgumentException("remote server host can not be null");
+            }
             //a channel for socket
             try (SocketChannel socketChannel = SocketChannel.open()) {
                 //connect server
-                socketChannel.connect(new InetSocketAddress("127.0.0.1", 9999));
+                socketChannel.connect(new InetSocketAddress(this.remoteHost, this.remotePort));
                 ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
                 byteBuffer.put("hello_world1234567890".getBytes(StandardCharsets.UTF_8));
                 //reset position for write to channel
                 byteBuffer.flip();
                 socketChannel.write(byteBuffer);
+                System.out.println("[client] first msg write over");
                 byteBuffer.clear();
                 //会出现半包乱码问题
                 String msg = "早上好中国1，现在我有1冰淇淋1，我最爱吃🍦";
                 byteBuffer.put(msg.getBytes(StandardCharsets.UTF_8));
                 byteBuffer.flip();
                 socketChannel.write(byteBuffer);
+                System.out.println("[client] second msg write over");
                 byteBuffer.clear();
             } catch (IOException e) {
                 e.printStackTrace();

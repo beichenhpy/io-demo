@@ -13,12 +13,12 @@ import java.nio.channels.FileChannel;
  */
 public class NioFileDemo {
 
-    private static final String FILE_PATH = "/Users/beichenhpy/Dev/Projects/JavaProjects/nio-demo/src/main/resources/note.text";
-    private static final String FILE_OUTPUT_PATH = "/Users/beichenhpy/Dev/Projects/JavaProjects/nio-demo/src/main/resources/output/note.text";
+    private static final String FILE_PATH = "./nio/note.txt";
+    private static final String FILE_OUTPUT_PATH = "./nio/note.copy.txt";
 
     public static void main(String[] args) {
         try (FileInputStream fileInputStream = new FileInputStream(FILE_PATH)) {
-            try (FileOutputStream fileOutputStream = new FileOutputStream(FILE_OUTPUT_PATH)){
+            try (FileOutputStream fileOutputStream = new FileOutputStream(FILE_OUTPUT_PATH)) {
                 FileChannel inputChannel = fileInputStream.getChannel();
                 FileChannel outputChannel = fileOutputStream.getChannel();
                 ByteBuffer byteBuffer = ByteBuffer.allocate(1024);
